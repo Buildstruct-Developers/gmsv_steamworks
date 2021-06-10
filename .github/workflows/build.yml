@@ -21,5 +21,30 @@ jobs:
       - name: Upload
         uses: actions/upload-artifact@v2
         with:
-          name: gmsv_steamworks_linux64
+          name: linux64
           path: projects/linux/gmake/x86_64/Release/gmsv_steamworks_linux64.dll
+          
+  linux:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+          
+      - name: Install x32 libs
+        run: sudo apt install gcc-multilib g++-multilib
+
+      - name: Configure
+        run: ./configure
+        
+      - name: Build
+        run: |
+          cd projects/linux/gmake
+          make config=release_x86
+      
+      - name: Upload
+        uses: actions/upload-artifact@v2
+        with:
+          name: linux64
+          path: projects/linux/gmake/x86_64/Release/gmsv_steamworks_linux.dll
