@@ -22,4 +22,4 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: gmsv_steamworks_linux64
-          path: projects/linux/gmake/x86_64/Release
+          path: projects/linux/gmake/x86_64/Release/gmsv_steamworks_linux64.dll
