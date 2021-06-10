@@ -28,4 +28,6 @@ jobs:
           make config=release_x86_64
           
       - name: Build project x32
-        run: make config=release_x86
+        run: |
+          cd projects/linux/gmake
+          make config=release_x86
