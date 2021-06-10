@@ -73,3 +73,28 @@ jobs:
         with:
           name: Windows64-Build
           path: projects/windows/vs2019/x86_64/Release/gmsv_steamworks_win64.dll
+          
+  win:
+    runs-on: windows-latest
+    
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+          
+      - name: Add msbuild to PATH
+        uses: microsoft/setup-msbuild@v1.0.2
+      
+      - name: Configure
+        run: ./configure.bat
+        
+      - name: Build
+        run: |
+          cd projects/windows/vs2019
+          msbuild.exe steamworks.sln -property:Configuration=Release -property:Platform=Win32
+
+      - name: Upload
+        uses: actions/upload-artifact@v2
+        with:
+          name: Windows-Build
+          path: projects/windows/vs2019/x86/Release/gmsv_steamworks_win.dll
