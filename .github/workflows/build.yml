@@ -21,7 +21,7 @@ jobs:
       - name: Upload
         uses: actions/upload-artifact@v2
         with:
-          name: linux64
+          name: Linux64-build
           path: projects/linux/gmake/x86_64/Release/gmsv_steamworks_linux64.dll
           
   linux:
@@ -46,5 +46,27 @@ jobs:
       - name: Upload
         uses: actions/upload-artifact@v2
         with:
-          name: linux64
+          name: Linux-Build
           path: projects/linux/gmake/x86/Release/gmsv_steamworks_linux.dll
+          
+  win64:
+    runs-on: windows-latest
+    
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      
+      - name: Configure
+        run: ./configure.bat
+        
+      - name: Build
+        run: |
+          cd projects/windows/vs2019
+          msbuild.exe steamworks.sln -property:Configuration=Release -property:Platform=x64
+
+      - name: Upload
+        uses: actions/upload-artifact@v2
+        with:
+          name: Windows64-Build
+          path: projects/windows/vs2019/x86_64/Release/gmsv_steamworks_win64.dll
