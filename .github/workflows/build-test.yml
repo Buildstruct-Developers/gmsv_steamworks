@@ -21,3 +21,8 @@ jobs:
 
       - name: Configure project
         run: ./configure
+        
+      - name: Build project
+        run: |
+          cd projects/linux/gmake
+          make config=release_x86_64
