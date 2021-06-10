@@ -20,7 +20,7 @@ jobs:
           submodules: recursive
           
       - name: Install libs
-        run: sudo apt install gcc-multilib
+        run: sudo apt install gcc-multilib g++-multilib
 
       - name: Configure project
         run: ./configure
