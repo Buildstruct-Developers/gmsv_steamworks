@@ -2,7 +2,7 @@ name: Build library
 on: [push, pull_request]
 
 jobs:
-  linux-64:
+  linux64:
     runs-on: ubuntu-latest
     
     steps:
@@ -97,4 +97,4 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: Windows-Build
-          path: projects/windows/vs2019/x86/Release/gmsv_steamworks_win.dll
+          path: projects/windows/vs2019/x86/Release/gmsv_steamworks_win32.dll
