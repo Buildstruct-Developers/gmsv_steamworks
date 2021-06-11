@@ -19,6 +19,6 @@ CreateWorkspace({ name = "steamworks", abi_compatible = false })
         IncludeSDKCommon()
         IncludeSteamAPI()
         IncludeSDKTier0()
-		IncludeSDKTier1()
+        IncludeSDKTier1()
 
         files {"src/*.cpp", "src/*.hpp"}
