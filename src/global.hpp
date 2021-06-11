@@ -10,4 +10,8 @@
 		return FUNC(LUA); \
 	})
 
+#define SET_FUNC(FUNC) \
+	PUSH_FUNC(FUNC); \
+	LUA->SetField(-2, #FUNC) \
+
 #endif

@@ -1,7 +1,9 @@
 #include "global.hpp"
 #include <GarrysMod/InterfacePointers.hpp>
 #include <steam_api.h>
+#include <lua.hpp>
 #include <iostream>
+#include <thread>
 
 using namespace GarrysMod::Lua;
 using namespace std;
@@ -9,9 +11,9 @@ using namespace std;
 namespace Steamworks {
 	CSteamGameServerAPIContext* GameServerAPI;
 
-	int Test(ILuaBase* LUA)
+	int DownloadUGC(ILuaBase* LUA)
 	{
-		cout << "Hello World!" << endl;
+
 		return 0;
 	}
 
@@ -19,8 +21,9 @@ namespace Steamworks {
 	{
 		CSteamGameServerAPIContext* api = InterfacePointers::SteamGameServerAPIContext();
 
-		PUSH_FUNC(Test);
-		LUA->SetField(INDEX_GLOBAL, "Test");
+		LUA->CreateTable();
+			SET_FUNC(DownloadUGC);
+		LUA->SetField(INDEX_GLOBAL, "steamworks");
 	}
 
 	void Deinitialize(ILuaBase* LUA)
