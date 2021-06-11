@@ -14,6 +14,8 @@ include(gmcommon or 'third-party/garrysmod_common')
 
 CreateWorkspace({ name = "steamworks", abi_compatible = false })
     CreateProject({ serverside = true, manual_files = true })
+        IncludeHelpersExtended()
+        IncludeLuaShared()
         IncludeSDKCommon()
         IncludeSteamAPI()
         IncludeSDKTier0()
