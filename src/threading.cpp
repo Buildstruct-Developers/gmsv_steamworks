@@ -216,12 +216,11 @@ void Thread::Initialize(ILuaBase* LUA)
 	lua_pushvalue(L, -1);
 	lua_setfield(L, -2, "__index");
 
-	lua_pushstring(L, "Blya");
+	lua_pushstring(L, "CThread");
 	lua_setfield(L, -2, "MetaName");
 
 	luaL_setfuncs(L, lib_funcs, 0);
 	META = luaL_ref(L, LUA_REGISTRYINDEX);
-	cout << "META: " << META << endl;
 }
 
 void Thread::Deinitialize(ILuaBase* LUA)
