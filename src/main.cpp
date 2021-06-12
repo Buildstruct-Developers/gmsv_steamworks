@@ -36,7 +36,11 @@ namespace Steamworks {
 
 	int DownloadUGC(ILuaBase* LUA)
 	{
-		bool success = SteamGameServerUGC()->DownloadItem(2507359662, false);
+		const char* id_str = LUA->CheckString(1);
+		PublishedFileId_t id = std::stoull(id_str);
+
+		cout << "TRY DOWNLOAD: " << id << endl;
+		bool success = SteamGameServerUGC()->DownloadItem(id, false);
 		cout << "SUCCESS: " << boolalpha << success << endl;
 
 
