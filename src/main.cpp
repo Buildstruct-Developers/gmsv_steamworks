@@ -4,7 +4,14 @@
 #include <iostream>
 #include <list>
 #include <algorithm>
+
+#ifdef __linux
+#include <experimental/filesystem>
+namespace fs = std::experimental::filesystem;
+#else
 #include <filesystem>
+namespace fs = std::filesystem;
+#endif
 
 using namespace GarrysMod::Lua;
 using namespace std;
@@ -52,8 +59,8 @@ namespace Steamworks {
 
 			ok = SteamGameServerUGC()->GetItemInstallInfo(res->m_nPublishedFileId, &punSizeOnDisk, pchFolder, 256, &punTimeStamp);
 			if (ok) {
-				auto it = filesystem::directory_iterator(pchFolder);
-				if (it == filesystem::end(it))
+				auto it = fs::directory_iterator(pchFolder);
+				if (it == fs::end(it))
 					ok = false;
 				else
 					path = it->path().string();

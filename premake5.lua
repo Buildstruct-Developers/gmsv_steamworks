@@ -20,3 +20,6 @@ CreateWorkspace({ name = "steamworks", abi_compatible = false })
         IncludeSteamAPI()
 
         files {"src/*.cpp", "src/*.hpp"}
+
+		filter("system:linux")
+            links({"stdc++fs"})
