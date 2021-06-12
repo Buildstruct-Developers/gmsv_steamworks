@@ -25,7 +25,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: Linux64-build
-          path: projects/linux/gmake/x86_64/Release/${MODULE_PREFIX}_${MODULE_NAME}_linux64.dll
+          path: projects/linux/gmake/x86_64/Release/${{env.MODULE_PREFIX}}_${{env.MODULE_NAME}}_linux64.dll
           
   linux32:
     runs-on: ubuntu-latest
@@ -50,7 +50,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: Linux32-Build
-          path: projects/linux/gmake/x86/Release/${MODULE_PREFIX}_${MODULE_NAME}_linux.dll
+          path: projects/linux/gmake/x86/Release/${{env.MODULE_PREFIX}}_${{env.MODULE_NAME}}_linux.dll
           
   win64:
     runs-on: windows-latest
@@ -69,13 +69,13 @@ jobs:
       - name: Build
         run: |
           cd projects/windows/vs2019
-          msbuild.exe ${MODULE_NAME}.sln -property:Configuration=Release -property:Platform=x64
+          msbuild.exe ${{env.MODULE_NAME}}.sln -property:Configuration=Release -property:Platform=x64
 
       - name: Upload
         uses: actions/upload-artifact@v2
         with:
           name: Windows64-Build
-          path: projects/windows/vs2019/x86_64/Release/${MODULE_PREFIX}_${MODULE_NAME}_win64.dll
+          path: projects/windows/vs2019/x86_64/Release/${{env.MODULE_PREFIX}}_${{env.MODULE_NAME}}_win64.dll
           
   win32:
     runs-on: windows-latest
@@ -94,10 +94,10 @@ jobs:
       - name: Build
         run: |
           cd projects/windows/vs2019
-          msbuild.exe ${MODULE_NAME}.sln -property:Configuration=Release -property:Platform=Win32
+          msbuild.exe ${{env.MODULE_NAME}}.sln -property:Configuration=Release -property:Platform=Win32
 
       - name: Upload
         uses: actions/upload-artifact@v2
         with:
           name: Windows32-Build
-          path: projects/windows/vs2019/x86/Release/${MODULE_PREFIX}_${MODULE_NAME}_win32.dll
+          path: projects/windows/vs2019/x86/Release/${{env.MODULE_PREFIX}}_${{env.MODULE_NAME}}_win32.dll
