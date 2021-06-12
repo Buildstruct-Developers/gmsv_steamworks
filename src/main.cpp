@@ -1,55 +1,110 @@
 #include "global.hpp"
 #include "threading.hpp"
-#include <GarrysMod/InterfacePointers.hpp>
 #include <steam_api.h>
 #include <iostream>
-#include <thread>
+#include <list>
+#include <algorithm>
+#include <filesystem>
 
 using namespace GarrysMod::Lua;
 using namespace std;
 
 namespace Steamworks {
-	struct CSteamworks;
-	CSteamGameServerAPIContext* GameServerAPI;
+	struct CSteamworks {
+		struct AddonFile {
+			Threading::Core::LuaThread lt;
+			PublishedFileId_t id;
+			int callback;
+		};
+
+		list<AddonFile> AddonQueue;
+		void PushCallback(lua_State* L, PublishedFileId_t id, int ref);
+
+		STEAM_GAMESERVER_CALLBACK(CSteamworks, OnItemDownloaded, DownloadItemResult_t);
+	};
 	CSteamworks* SteamworksAPI = nullptr;
 
-	struct CSteamworks {
-		STEAM_GAMESERVER_CALLBACK(CSteamworks, OnItemDownloaded, DownloadItemResult_t);
-		STEAM_CALLBACK(CSteamworks, OnItemDownloaded2, DownloadItemResult_t);
-	};
+	void CSteamworks::PushCallback(lua_State* L, PublishedFileId_t id, int ref)
+	{
+		Threading::Core::LuaThread lt = Threading::Core::Alloc(L);
+		AddonFile af{ lt, id, ref };
+		AddonQueue.push_back(af);
+	}
 
 	void CSteamworks::OnItemDownloaded(DownloadItemResult_t* res)
 	{
-		cout << "test 1" << endl;
-		cout << "AppID:  " << res->m_unAppID << endl;
-		cout << "FileID: " << res->m_nPublishedFileId << endl;
-		cout << "Result: " << res->m_eResult << endl;
+		if (res->m_unAppID != 4000)
+			return;
+
+		bool exists = find_if(AddonQueue.begin(), AddonQueue.end(), [&res](AddonFile& af) {
+			return af.id == res->m_nPublishedFileId;
+		}) != AddonQueue.end();
+
+		if (!exists)
+			return;
+
+		string path;
+		bool ok = res->m_eResult == k_EResultOK;
+		if (ok) {
+			uint64 punSizeOnDisk;
+			uint32 punTimeStamp;
+			char* pchFolder = new char[256];
+
+			ok = SteamGameServerUGC()->GetItemInstallInfo(res->m_nPublishedFileId, &punSizeOnDisk, pchFolder, 256, &punTimeStamp);
+			if (ok) {
+				auto it = filesystem::directory_iterator(pchFolder);
+				if (it == filesystem::end(it))
+					ok = false;
+				else
+					path = it->path().string();
+			}
+
+			delete[] pchFolder;
+		}
+
+		AddonQueue.remove_if([&](AddonFile& af) {
+			if (af.id != res->m_nPublishedFileId)
+				return false;
+
+			lua_State* L = af.lt.state;
+			lua_rawgeti(L, LUA_REGISTRYINDEX, af.callback);
+			ok ? lua_pushstring(L, path.c_str()) : lua_pushnil(L);
+			if (lua_pcall(L, 1, 0, 0) != 0) {
+				luaL_traceback(L, L, lua_tostring(L, -1), 0);
+				cout << lua_tostring(L, -1) << endl;
+				lua_pop(L, 2);
+			}
+
+			luaL_unref(L, LUA_REGISTRYINDEX, af.callback);
+			Threading::Core::Dealloc(af.lt);
+			return true;
+		});
 	}
 
-	void CSteamworks::OnItemDownloaded2(DownloadItemResult_t* res)
+	int DownloadUGC(lua_State* L)
 	{
-		cout << "test 2" << endl;
-		cout << "AppID:  " << res->m_unAppID << endl;
-		cout << "FileID: " << res->m_nPublishedFileId << endl;
-		cout << "Result: " << res->m_eResult << endl;
-	}
+		ILuaBase* LUA = L->luabase;
+		LUA->SetState(L);
 
-	int DownloadUGC(ILuaBase* LUA)
-	{
 		const char* id_str = LUA->CheckString(1);
+		LUA->CheckType(2, Type::Function);
+
 		PublishedFileId_t id = std::stoull(id_str);
-
-		cout << "TRY DOWNLOAD: " << id << endl;
 		bool success = SteamGameServerUGC()->DownloadItem(id, false);
-		cout << "SUCCESS: " << boolalpha << success << endl;
 
+		if (success) {
+			lua_pushvalue(L, 2);
+			int ref = luaL_ref(L, LUA_REGISTRYINDEX);
 
-		return 0;
+			SteamworksAPI->PushCallback(L, id, ref);
+		}
+
+		LUA->PushBool(success);
+		return 1;
 	}
 
 	void Initialize(ILuaBase* LUA)
 	{
-		GameServerAPI = InterfacePointers::SteamGameServerAPIContext();
 		SteamworksAPI = new CSteamworks;
 
 		Threading::Core::Initialize(LUA);
