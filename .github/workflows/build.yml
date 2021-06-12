@@ -3,7 +3,7 @@ on: [push, pull_request]
 
 jobs:
   linux64:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     
     steps:
       - uses: actions/checkout@v2
@@ -25,7 +25,7 @@ jobs:
           path: projects/linux/gmake/x86_64/Release/gmsv_steamworks_linux64.dll
           
   linux32:
-    runs-on:	ubuntu-18.04
+    runs-on: ubuntu-latest
     
     steps:
       - uses: actions/checkout@v2
