@@ -89,8 +89,11 @@ namespace Steamworks {
 		const char* id_str = LUA->CheckString(1);
 		LUA->CheckType(2, Type::Function);
 
+		bool success = false;
 		PublishedFileId_t id = std::stoull(id_str);
-		bool success = SteamGameServerUGC()->DownloadItem(id, false);
+		ISteamUGC* ugc = SteamGameServerUGC();
+		if (ugc)
+			success = SteamGameServerUGC()->DownloadItem(id, false);
 
 		if (success) {
 			lua_pushvalue(L, 2);
