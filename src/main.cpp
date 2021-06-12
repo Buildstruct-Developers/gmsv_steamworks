@@ -59,11 +59,15 @@ namespace Steamworks {
 
 			ok = SteamGameServerUGC()->GetItemInstallInfo(res->m_nPublishedFileId, &punSizeOnDisk, pchFolder, 256, &punTimeStamp);
 			if (ok) {
-				auto it = fs::directory_iterator(pchFolder);
-				if (it == fs::end(it))
-					ok = false;
-				else
-					path = it->path().string();
+				if (!fs::is_directory(pchFolder)) {
+					path = pchFolder;
+				} else {
+					auto it = fs::directory_iterator(pchFolder);
+					if (it == fs::end(it))
+						ok = false;
+					else
+						path = it->path().string();
+				}
 			}
 
 			delete[] pchFolder;
