@@ -36,21 +36,8 @@ namespace Steamworks {
 
 	int DownloadUGC(ILuaBase* LUA)
 	{
-		ISteamUGC* ugc = GameServerAPI->SteamUGC();
-		ISteamUGC* ugc2 = SteamGameServerUGC();
-		cout << ugc << ' ' << boolalpha << (ugc == nullptr) << endl;
-		cout << ugc2 << ' ' << boolalpha << (ugc2 == nullptr) << endl;
-
-		if (ugc != nullptr) {
-			cout << "ugc1" << endl;
-			ugc->DownloadItem(2509905428, false);
-		}
-			
-
-		if (ugc2 != nullptr) {
-			cout << "ugc2" << endl;
-			ugc2->DownloadItem(2507359662, false);
-		}
+		bool success = SteamGameServerUGC()->DownloadItem(2507359662, false);
+		cout << "SUCCESS: " << boolalpha << success << endl;
 
 
 		return 0;
