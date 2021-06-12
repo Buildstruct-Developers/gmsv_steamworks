@@ -187,6 +187,9 @@ void Thread::Sync()
 		return;
 
 	lastLock = Core::CreateLock();
+	if (joined)
+		return;
+
 	Core::Sync(lastLock);
 }
 
