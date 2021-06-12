@@ -47,8 +47,6 @@ namespace Threading {
 
 	class Thread {
 		std::thread thr;
-		std::atomic_bool destroy = false;
-		std::atomic_bool joined = false;
 		Core::Lock* lastLock = nullptr;
 
 		static int __gc(lua_State* L);
@@ -56,6 +54,8 @@ namespace Threading {
 	public:
 		static int META;
 
+		std::atomic_bool destroy = false;
+		std::atomic_bool joined = false;
 		~Thread();
 
 		static void New(lua_State* L, Thread* t);
