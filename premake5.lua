@@ -11,14 +11,12 @@ if not gmcommon then
     print("you didn't provide a path to your garrysmod_common (https://github.com/danielga/garrysmod_common) directory. Using built in instead.")
 end
 include(gmcommon or 'third-party/garrysmod_common')
+include('third-party/steam_api')
 
 CreateWorkspace({ name = "steamworks", abi_compatible = false })
     CreateProject({ serverside = true, manual_files = true })
         IncludeHelpersExtended()
         IncludeLuaShared()
-        IncludeSDKCommon()
         IncludeSteamAPI()
-        IncludeSDKTier0()
-        IncludeSDKTier1()
 
         files {"src/*.cpp", "src/*.hpp"}
