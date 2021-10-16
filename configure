@@ -1,2 +1,2 @@
 #!/bin/sh
-bin/premake5 gmake
+bin/premake5 gmake "$@"

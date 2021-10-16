@@ -5,13 +5,10 @@ newoption({
 	description = "Sets the path to the garrysmod_common (https://github.com/danielga/garrysmod_common) directory",
 	value = "path to garrysmod_common directory"
 })
-
-gmcommon = _OPTIONS.gmcommon or os.getenv("GARRYSMOD_COMMON")
-if not gmcommon then
-    print("you didn't provide a path to your garrysmod_common (https://github.com/danielga/garrysmod_common) directory. Using built in instead.")
-end
-include(gmcommon or 'third-party/garrysmod_common')
-include('third-party/steam_api')
+local gmcommon = assert(_OPTIONS.gmcommon or os.getenv("GARRYSMOD_COMMON"),
+	"you didn't provide a path to your garrysmod_common (https://github.com/danielga/garrysmod_common) directory")
+include(gmcommon)
+include "third-party/steam_api" -- Replaces IncludeSteamAPI
 
 CreateWorkspace({ name = "steamworks", abi_compatible = false })
     CreateProject({ serverside = true, manual_files = true })
