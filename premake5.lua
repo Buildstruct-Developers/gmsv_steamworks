@@ -19,12 +19,8 @@ CreateWorkspace({ name = "steamworks", abi_compatible = false })
         IncludeSteamAPI()
         IncludeSDKCommon()
         IncludeSDKTier0()
-        IncludeSDKTier1()
 
         IncludeTinydir()
 
         files {"src/*.cpp", "src/*.hpp"}
         sysincludedirs { "third-party/tinydir" }
-
-		-- filter("system:linux")
-        --     links({"stdc++fs"})
