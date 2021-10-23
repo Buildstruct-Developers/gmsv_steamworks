@@ -8,15 +8,23 @@ newoption({
 local gmcommon = assert(_OPTIONS.gmcommon or os.getenv("GARRYSMOD_COMMON"),
 	"you didn't provide a path to your garrysmod_common (https://github.com/danielga/garrysmod_common) directory")
 include(gmcommon)
+
 include "third-party/steam_api" -- Replaces IncludeSteamAPI
+include "third-party/tinydir"
 
 CreateWorkspace({ name = "steamworks", abi_compatible = false })
     CreateProject({ serverside = true, manual_files = true })
         IncludeHelpersExtended()
         IncludeLuaShared()
         IncludeSteamAPI()
+        IncludeSDKCommon()
+        IncludeSDKTier0()
+        IncludeSDKTier1()
+
+        IncludeTinydir()
 
         files {"src/*.cpp", "src/*.hpp"}
+        sysincludedirs { "third-party/tinydir" }
 
-		filter("system:linux")
-            links({"stdc++fs"})
+		-- filter("system:linux")
+        --     links({"stdc++fs"})
