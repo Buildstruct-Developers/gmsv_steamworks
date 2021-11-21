@@ -90,7 +90,7 @@ void CSteamWorks::OnItemDownloaded(DownloadItemResult_t* res)
 					tinydir_readfile(dir, file);
 					
 					if (!file->is_dir) {
-						V_FixSlashes(file->path);
+						//V_FixSlashes(file->path);
 						path = file->path;
 						break;
 					}
