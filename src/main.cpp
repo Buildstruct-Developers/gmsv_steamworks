@@ -174,28 +174,31 @@ int DownloadUGC(lua_State* L)
 	GarrysMod::Lua::ILuaBase* LUA = L->luabase;
 	LUA->SetState(L);
 
-	PublishedFileId_t id = std::stoull(LUA->CheckString(1));
+	PublishedFileId_t id = std::strtoull(LUA->CheckString(1), NULL, 0);
 	LUA->CheckType(2, GarrysMod::Lua::Type::Function);
 
-	bool success = false;
-	ISteamUGC* ugc = SteamGameServerUGC();
-	if (ugc)
-		success = ugc->DownloadItem(id, false);
-
+	bool success = id != 0ULL;
 	if (success) {
-		lua_pushvalue(L, 2);
-		int ref = luaL_ref(L, LUA_REGISTRYINDEX);
-		
-		CSteamWorks::DownloadUGCQueue.push_back({
-			Retro::LuaThreading::CreateState(L),
-			id,
-			ref
-		});
-	} else {
-		LUA->PushCFunction(LuaErrorHandler);
-		LUA->Push(2);
-		LUA->PCall(0, 0, -2);
-		LUA->Pop();
+		ISteamUGC* ugc = SteamGameServerUGC();
+		if (ugc)
+			success = ugc->DownloadItem(id, false);
+
+		if (success) {
+			lua_pushvalue(L, 2);
+			int ref = luaL_ref(L, LUA_REGISTRYINDEX);
+
+			CSteamWorks::DownloadUGCQueue.push_back({
+				Retro::LuaThreading::CreateState(L),
+				id,
+				ref
+				});
+		}
+		else {
+			LUA->PushCFunction(LuaErrorHandler);
+			LUA->Push(2);
+			LUA->PCall(0, 0, -2);
+			LUA->Pop();
+		}
 	}
 
 	LUA->PushBool(success);
@@ -207,26 +210,29 @@ int FileInfo(lua_State* L)
 	GarrysMod::Lua::ILuaBase* LUA = L->luabase;
 	LUA->SetState(L);
 
-	PublishedFileId_t id = std::stoull(LUA->CheckString(1));
+	PublishedFileId_t id = std::strtoull(LUA->CheckString(1), NULL, 0);
 	LUA->CheckType(2, GarrysMod::Lua::Type::Function);
 
-	bool success = CSteamWorks::Singleton->RequestUGCDetails(id);
-
+	bool success = id != 0ULL;
 	if (success) {
-		lua_pushvalue(L, 2);
-		int ref = luaL_ref(L, LUA_REGISTRYINDEX);
+		success = CSteamWorks::Singleton->RequestUGCDetails(id);
 
-		CSteamWorks::FileInfoQueue.push_back({
-			Retro::LuaThreading::CreateState(L),
-			id,
-			ref
-		});
-	}
-	else {
-		LUA->PushCFunction(LuaErrorHandler);
-		LUA->Push(2);
-		LUA->PCall(0, 0, -2);
-		LUA->Pop();
+		if (success) {
+			lua_pushvalue(L, 2);
+			int ref = luaL_ref(L, LUA_REGISTRYINDEX);
+
+			CSteamWorks::FileInfoQueue.push_back({
+				Retro::LuaThreading::CreateState(L),
+				id,
+				ref
+				});
+		}
+		else {
+			LUA->PushCFunction(LuaErrorHandler);
+			LUA->Push(2);
+			LUA->PCall(0, 0, -2);
+			LUA->Pop();
+		}
 	}
 
 	LUA->PushBool(success);
