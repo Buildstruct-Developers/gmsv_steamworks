@@ -6,7 +6,7 @@
 #include <queue>
 #include <lua.hpp>
 
-namespace Retro 
+namespace Retro
 {
 	namespace LuaThreading
 	{
@@ -21,15 +21,19 @@ namespace Retro
 			lua_State* _L = nullptr;
 			int _ref = 0;
 		public:
-			LuaState() = delete;
-			LuaState(lua_State* L, int ref)
+			// Default constructor
+			LuaState() {};
+			LuaState(lua_State* L, int ref) noexcept
 				: _L(L)
-				, _ref(ref) 
+				, _ref(ref)
 			{}
 
+			// Copy constructor
 			LuaState(const LuaState& other) = delete;
+			// Copy assignment operator
 			LuaState& operator=(const LuaState& other) = delete;
 
+			// Move constructor
 			LuaState(LuaState&& other) noexcept
 			{
 				_L = other._L;
@@ -39,11 +43,36 @@ namespace Retro
 				other._ref = 0;
 			}
 
-			~LuaState()
+			// Move assignment operator
+			LuaState& operator=(LuaState&& other) noexcept
+			{
+				if (this != &other) {
+					destroy();
+
+					_L = other._L;
+					_ref = other._ref;
+
+					other._L = nullptr;
+					other._ref = 0;
+				}
+
+				return *this;
+			}
+
+			// Destroys lua state and returns true if lua state was valid, otherwise false
+			bool destroy()
 			{
 				if (is_valid()) {
 					luaL_unref(_L, LUA_REGISTRYINDEX, _ref);
+					return true;
 				}
+
+				return false;
+			}
+
+			~LuaState()
+			{
+				destroy();
 			}
 
 			inline lua_State* get()
@@ -88,7 +117,7 @@ namespace Retro
 		{
 			{ // Unlocking main thread
 				std::lock_guard<std::mutex> lck(lock->m);
-				lock->step1 = true;
+				lock->step2 = true;
 			}
 			lock->cv.notify_one();
 		}
