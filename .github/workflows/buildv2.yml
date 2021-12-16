@@ -9,7 +9,7 @@ env:
   MODULE_NAME: steamworks
 
 jobs:
-  linux:
+  linux64:
     runs-on: ubuntu-20.04
         
     steps:
@@ -18,7 +18,7 @@ jobs:
           path: 'module'
           submodules: 'recursive'
         
-      - name: 'Download garrysmod_common'
+      - name: 'Clone garrysmod_common'
         uses: actions/checkout@v2
         with:
           repository: 'danielga/garrysmod_common'
@@ -28,15 +28,8 @@ jobs:
           
       - name: 'Setup dirs'
         run: |
-          mkdir -p libs/x32
-          mkdir -p libs/x64
           mkdir -p out/Release
           mkdir -p out/Debug
-          
-      - name: 'Install multilib'
-        #if: ${{ github.event_name != 'push' }}
-        run: |
-          sudo apt install gcc-multilib g++-multilib
           
       - name: 'Setup module'
         run: |
@@ -47,41 +40,79 @@ jobs:
       - name: '[x64] Build Release'
         run: |
           cd module/projects/linux/gmake/
-          LDFLAGS=-L${{github.workspace}}/libs/x64 make config=release_x86_64
+          make config=release_x86_64
           mv x86_64/Release/${{env.MODULE_PREFIX}}_${{env.MODULE_NAME}}_linux64.dll ${{github.workspace}}/out/Release
           
       - name: '[x64] Build Debug'
-        #if: ${{ github.event_name != 'push' }}
         run: |
           cd module/projects/linux/gmake/
-          LDFLAGS=-L${{github.workspace}}/libs/x64 make config=debug_x86_64
+          make config=debug_x86_64
           mv x86_64/Debug/${{env.MODULE_PREFIX}}_${{env.MODULE_NAME}}_linux64.dll ${{github.workspace}}/out/Debug
-          
-      - name: '[x32] Build Release'
-        #if: ${{ github.event_name != 'push' }}
-        run: |
-          cd module/projects/linux/gmake/
-          LDFLAGS=-L${{github.workspace}}/libs/x32 make config=release_x86
-          mv x86/Release/${{env.MODULE_PREFIX}}_${{env.MODULE_NAME}}_linux.dll ${{github.workspace}}/out/Release
-          
-      - name: '[x32] Build Debug'
-        #if: ${{ github.event_name != 'push' }}
-        run: |
-          cd module/projects/linux/gmake/
-          LDFLAGS=-L${{github.workspace}}/libs/x32 make config=debug_x86
-          mv x86/Debug/${{env.MODULE_PREFIX}}_${{env.MODULE_NAME}}_linux.dll ${{github.workspace}}/out/Debug
-          
-      - uses: actions/upload-artifact@v2
-        with:
-          name: Libs
-          path: libs
 
-      - uses: actions/upload-artifact@v2
+      - name: Upload release build
+        uses: actions/upload-artifact@v2
         with:
           name: Release
           path: out/Release/
 
-      - uses: actions/upload-artifact@v2
+      - name: Upload debug build
+        uses: actions/upload-artifact@v2
+        with:
+          name: Debug
+          path: out/Debug/
+
+  linux:
+    runs-on: ubuntu-20.04
+        
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          path: 'module'
+          submodules: 'recursive'
+        
+      - name: 'Clone garrysmod_common'
+        uses: actions/checkout@v2
+        with:
+          repository: 'danielga/garrysmod_common'
+          ref: 'x86-64-support-sourcesdk'
+          path: 'garrysmod_common'
+          submodules: 'recursive'
+          
+      - name: 'Setup dirs'
+        run: |
+          mkdir -p out/Release
+          mkdir -p out/Debug
+          
+      - name: 'Install multilib'
+        run: |
+          sudo apt install gcc-multilib g++-multilib
+          
+      - name: 'Setup module'
+        run: |
+          export GARRYSMOD_COMMON=${{github.workspace}}/garrysmod_common
+          cd module
+          ./configure
+          
+      - name: '[x32] Build Release'
+        run: |
+          cd module/projects/linux/gmake/
+          make config=release_x86
+          mv x86/Release/${{env.MODULE_PREFIX}}_${{env.MODULE_NAME}}_linux.dll ${{github.workspace}}/out/Release
+          
+      - name: '[x32] Build Debug'
+        run: |
+          cd module/projects/linux/gmake/
+          make config=debug_x86
+          mv x86/Debug/${{env.MODULE_PREFIX}}_${{env.MODULE_NAME}}_linux.dll ${{github.workspace}}/out/Debug
+          
+      - name: Upload release build
+        uses: actions/upload-artifact@v2
+        with:
+          name: Release
+          path: out/Release/
+
+      - name: Upload debug build
+        uses: actions/upload-artifact@v2
         with:
           name: Debug
           path: out/Debug/
