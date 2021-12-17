@@ -141,7 +141,7 @@ jobs:
 
       - name: 'Setup module'
         run: |
-          $env:GARRYSMOD_COMMON = ${{github.workspace}}\garrysmod_common
+          $env:GARRYSMOD_COMMON = "${{github.workspace}}\garrysmod_common"
           cd module
           ./configure.bat
           
