@@ -191,7 +191,7 @@ int DownloadUGC(lua_State* L)
 				Retro::LuaThreading::CreateState(L),
 				id,
 				ref
-				});
+			});
 		}
 		else {
 			LUA->PushCFunction(LuaErrorHandler);

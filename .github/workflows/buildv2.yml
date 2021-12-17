@@ -116,3 +116,49 @@ jobs:
         with:
           name: Debug
           path: out/Debug/
+
+  win64:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          path: 'module'
+          submodules: 'recursive'
+
+      - name: 'Clone garrysmod_common'
+        uses: actions/checkout@v2
+        with:
+          repository: 'danielga/garrysmod_common'
+          ref: 'x86-64-support-sourcesdk'
+          path: 'garrysmod_common'
+          submodules: 'recursive'
+
+      - name: 'Setup dirs'
+        run: |
+          New-Item -ItemType Directory -Force -Path .\out\Release
+          New-Item -ItemType Directory -Force -Path .\out\Debug
+
+      - name: 'Setup module'
+        run: |
+          $env:GARRYSMOD_COMMON = ${{github.workspace}}\garrysmod_common
+          cd module
+          ./configure.bat
+          
+      - name: '[x64] Build Release'
+        run: |
+          cd module\projects\linux\gmake
+          msbuild.exe ${{env.MODULE_NAME}}.sln -property:Configuration=Release -property:Platform=x64
+          Move-Item x86_64\Release\${{env.MODULE_PREFIX}}_${{env.MODULE_NAME}}_win64.dll ${{github.workspace}}\out\Release
+
+      - name: Upload release build
+        uses: actions/upload-artifact@v2
+        with:
+          name: Release
+          path: out/Release/
+
+      - name: Upload debug build
+        uses: actions/upload-artifact@v2
+        with:
+          name: Debug
+          path: out/Debug/
