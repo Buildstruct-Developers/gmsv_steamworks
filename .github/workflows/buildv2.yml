@@ -40,13 +40,13 @@ jobs:
       - name: '[x64] Build Release'
         run: |
           cd module/projects/linux/gmake/
-          make config=release_x86_64
+          make -j2 config=release_x86_64
           mv x86_64/Release/${{env.MODULE_PREFIX}}_${{env.MODULE_NAME}}_linux64.dll ${{github.workspace}}/out/Release
           
       - name: '[x64] Build Debug'
         run: |
           cd module/projects/linux/gmake/
-          make config=debug_x86_64
+          make -j2 config=debug_x86_64
           mv x86_64/Debug/${{env.MODULE_PREFIX}}_${{env.MODULE_NAME}}_linux64.dll ${{github.workspace}}/out/Debug
 
       - name: Upload release build
@@ -96,13 +96,13 @@ jobs:
       - name: '[x32] Build Release'
         run: |
           cd module/projects/linux/gmake/
-          make config=release_x86
+          make -j2 config=release_x86
           mv x86/Release/${{env.MODULE_PREFIX}}_${{env.MODULE_NAME}}_linux.dll ${{github.workspace}}/out/Release
           
       - name: '[x32] Build Debug'
         run: |
           cd module/projects/linux/gmake/
-          make config=debug_x86
+          make -j2 config=debug_x86
           mv x86/Debug/${{env.MODULE_PREFIX}}_${{env.MODULE_NAME}}_linux.dll ${{github.workspace}}/out/Debug
           
       - name: Upload release build
@@ -151,7 +151,7 @@ jobs:
       - name: '[x64] Build Release'
         run: |
           cd module\projects\windows\vs2019
-          msbuild.exe ${{env.MODULE_NAME}}.sln -property:Configuration=Release -property:Platform=x64
+          msbuild.exe ${{env.MODULE_NAME}}.sln -property:Configuration=Release -property:Platform=x64 -m
           Move-Item x86_64\Release\${{env.MODULE_PREFIX}}_${{env.MODULE_NAME}}_win64.dll ${{github.workspace}}\out\Release
 
       - name: Upload release build
