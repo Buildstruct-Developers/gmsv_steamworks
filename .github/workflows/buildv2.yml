@@ -134,6 +134,9 @@ jobs:
           path: 'garrysmod_common'
           submodules: 'recursive'
 
+      - name: Add msbuild to PATH
+        uses: microsoft/setup-msbuild@v1.0.2
+
       - name: 'Setup dirs'
         run: |
           New-Item -ItemType Directory -Force -Path .\out\Release
