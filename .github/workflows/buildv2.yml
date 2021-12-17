@@ -172,7 +172,7 @@ jobs:
           name: Debug
           path: out/Debug/
 
-  win64:
+  win32:
     runs-on: windows-latest
 
     steps:
