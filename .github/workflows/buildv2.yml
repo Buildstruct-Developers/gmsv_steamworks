@@ -147,7 +147,7 @@ jobs:
           
       - name: '[x64] Build Release'
         run: |
-          cd module\projects\linux\gmake
+          cd module\projects\linux\vs2019
           msbuild.exe ${{env.MODULE_NAME}}.sln -property:Configuration=Release -property:Platform=x64
           Move-Item x86_64\Release\${{env.MODULE_PREFIX}}_${{env.MODULE_NAME}}_win64.dll ${{github.workspace}}\out\Release
 
