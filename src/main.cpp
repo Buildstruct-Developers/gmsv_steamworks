@@ -7,6 +7,7 @@
 #include <list>
 #include <filesystem.h>
 #include <tinydir.h>
+#include <algorithm>
 
 int LuaErrorHandler(lua_State* L)
 {
