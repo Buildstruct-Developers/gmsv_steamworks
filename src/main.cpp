@@ -9,7 +9,7 @@
 #include <algorithm>
 #include <filesystem.h>
 
-extern IFileSystem* g_pFullFileSystem;
+static IFileSystem* g_pMyFileSystem;
 
 int LuaErrorHandler(lua_State* L)
 {
@@ -83,7 +83,7 @@ void CSteamWorks::OnItemDownloaded(DownloadItemResult_t* res)
 
 		success = SteamGameServerUGC()->GetItemInstallInfo(res->m_nPublishedFileId, &punSizeOnDisk, pchFolder, 256, &punTimeStamp);
 		if (success) {
-			if (g_pFullFileSystem->IsDirectory(pchFolder)) {
+			if (g_pMyFileSystem->IsDirectory(pchFolder)) {
 				tinydir_dir* dir = new tinydir_dir;
 				tinydir_file* file = new tinydir_file;
 
@@ -249,7 +249,7 @@ int MountLegacy(lua_State* L)
 
 	std::string path = LUA->CheckString(1);
 
-	bool exists = g_pFullFileSystem->FileExists(path.c_str());
+	bool exists = g_pMyFileSystem->FileExists(path.c_str());
 	if (!exists) 
 		{ LUA->PushBool(false); return 1; }
 
@@ -260,8 +260,8 @@ int MountLegacy(lua_State* L)
 GMOD_MODULE_OPEN()
 {
 	CSteamWorks::Singleton = new CSteamWorks;
-	g_pFullFileSystem = InterfacePointers::FileSystem();
-	if (!g_pFullFileSystem)
+	g_pMyFileSystem = InterfacePointers::FileSystem();
+	if (!g_pMyFileSystem)
 		LUA->ThrowError("[Steamworks] Filesystem got fucked");
 
 	LUA->CreateTable();
