@@ -5,9 +5,11 @@
 #include <steam_api.h>
 #include <string>
 #include <list>
-#include <filesystem.h>
 #include <tinydir.h>
 #include <algorithm>
+#include <filesystem.h>
+
+extern IFileSystem* g_pFullFileSystem;
 
 int LuaErrorHandler(lua_State* L)
 {
