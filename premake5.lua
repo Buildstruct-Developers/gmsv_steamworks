@@ -20,6 +20,8 @@ CreateWorkspace({ name = "steamworks", abi_compatible = false })
         IncludeSteamAPI()
         IncludeSDKCommon()
         IncludeSDKTier0()
+        IncludeSDKTier1()
+        IncludeSDKMathlib()
 
         IncludeTinydir()
         IncludeLuaThreading()
