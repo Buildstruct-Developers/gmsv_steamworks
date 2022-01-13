@@ -7,6 +7,7 @@
 #include <list>
 #include <tinydir.h>
 #include <algorithm>
+#include <inttypes.h>
 #include <filesystem.h>
 
 static IFileSystem* g_pMyFileSystem;
@@ -22,6 +23,10 @@ int LuaErrorHandler(lua_State* L)
 
 class CSteamWorks {
 public:
+	CSteamWorks() {
+		printf("[Steamworks] CSTeamworks initialized. I'm initalized some hooks to steam api :)\n");
+	}
+
 	struct SteamCallback {
 		Retro::LuaThreading::LuaState state;
 		PublishedFileId_t id;
@@ -47,6 +52,8 @@ CSteamWorks* CSteamWorks::Singleton;
 
 bool CSteamWorks::RequestUGCDetails(PublishedFileId_t id)
 {
+	printf("[Steamworks] Requesting UGC Details\n");
+
 	ISteamUGC* ugc = SteamGameServerUGC();
 	if (!ugc)
 		return false;
@@ -61,9 +68,11 @@ bool CSteamWorks::RequestUGCDetails(PublishedFileId_t id)
 
 void CSteamWorks::OnItemDownloaded(DownloadItemResult_t* res)
 {
+	printf("[Steamworks] Hook called: OnItemDownloaded. Checking if hook called for garrysmod. AppID: %" PRIu32 " \n", res->m_unAppID);
 	if (res->m_unAppID != 4000)
 		return;
 
+	printf("[Steamworks] OnItemDownloaded: Checking if it is our request. ID: %" PRIu64 "\n", res->m_nPublishedFileId);
 	auto it = std::find_if(DownloadUGCQueue.begin(), DownloadUGCQueue.end(), [&res](SteamCallback& sc) {
 		return res->m_nPublishedFileId == sc.id;
 	});
@@ -71,6 +80,7 @@ void CSteamWorks::OnItemDownloaded(DownloadItemResult_t* res)
 	if (it == DownloadUGCQueue.end())
 		return;
 
+	printf("[Steamworks] OnItemDownloaded: Calling callback...\n");
 	SteamCallback& sc = *it;
 	lua_State* L = sc.state.get();
 
@@ -121,12 +131,14 @@ void CSteamWorks::OnItemDownloaded(DownloadItemResult_t* res)
 		lua_pop(L, 1);
 	lua_pop(L, 1);
 
+	printf("[Steamworks] OnItemDownloaded: Ending everything we need to end\n");
 	luaL_unref(L, LUA_REGISTRYINDEX, sc.cb);
 	DownloadUGCQueue.erase(it);
 }
 
 void CSteamWorks::OnGetUGCDetails(SteamUGCRequestUGCDetailsResult_t* res, bool bIOFailure)
 {
+	printf("[Steamworks] OnGetUGCDetails hook called. Checking if it is our request. ID: %" PRIu64 "\n", res->m_details.m_nPublishedFileId);
 	auto it = std::find_if(FileInfoQueue.begin(), FileInfoQueue.end(), [&res](SteamCallback& sc) {
 		return res->m_details.m_nPublishedFileId == sc.id;
 	});
@@ -134,6 +146,7 @@ void CSteamWorks::OnGetUGCDetails(SteamUGCRequestUGCDetailsResult_t* res, bool b
 	if (it == FileInfoQueue.end())
 		return;
 
+	printf("[Steamworks] OnGetUGCDetails: Calling callback...\n");
 	SteamCallback& sc = *it;
 	lua_State* L = sc.state.get();
 	bool success = res->m_details.m_eResult == k_EResultOK;
@@ -168,6 +181,7 @@ void CSteamWorks::OnGetUGCDetails(SteamUGCRequestUGCDetailsResult_t* res, bool b
 		lua_pop(L, 1);
 	lua_pop(L, success ? 2 : 1);
 
+	printf("[Steamworks] OnGetUGCDetails: Cleanup our shit\n");
 	luaL_unref(L, LUA_REGISTRYINDEX, sc.cb);
 	FileInfoQueue.erase(it);
 }
@@ -177,8 +191,12 @@ int DownloadUGC(lua_State* L)
 	GarrysMod::Lua::ILuaBase* LUA = L->luabase;
 	LUA->SetState(L);
 
+	printf("[Steamworks] DownloadUGC function just got called!\n");
+
 	PublishedFileId_t id = std::strtoull(LUA->CheckString(1), NULL, 0);
 	LUA->CheckType(2, GarrysMod::Lua::Type::Function);
+
+	printf("[Steamworks] %" PRIu64 " is id \n", id);
 
 	bool success = id != 0ULL;
 	if (success) {
@@ -190,6 +208,7 @@ int DownloadUGC(lua_State* L)
 			lua_pushvalue(L, 2);
 			int ref = luaL_ref(L, LUA_REGISTRYINDEX);
 
+			printf("[Steamworks] DownloadUGC pushing request to queue\n");
 			CSteamWorks::DownloadUGCQueue.push_back({
 				Retro::LuaThreading::CreateState(L),
 				id,
@@ -213,8 +232,12 @@ int FileInfo(lua_State* L)
 	GarrysMod::Lua::ILuaBase* LUA = L->luabase;
 	LUA->SetState(L);
 
+	printf("[Steamworks] FileInfo function just got called!\n");
+
 	PublishedFileId_t id = std::strtoull(LUA->CheckString(1), NULL, 0);
 	LUA->CheckType(2, GarrysMod::Lua::Type::Function);
+
+	printf("[Steamworks] %" PRIu64 " is id \n", id);
 
 	bool success = id != 0ULL;
 	if (success) {
@@ -224,6 +247,7 @@ int FileInfo(lua_State* L)
 			lua_pushvalue(L, 2);
 			int ref = luaL_ref(L, LUA_REGISTRYINDEX);
 
+			printf("[Steamworks] FileInfo pushing request to queue\n");
 			CSteamWorks::FileInfoQueue.push_back({
 				Retro::LuaThreading::CreateState(L),
 				id,
@@ -249,6 +273,8 @@ int MountLegacy(lua_State* L)
 
 	std::string path = LUA->CheckString(1);
 
+	printf("[Steamworks] MountLegacy called. File: %s\n", path.c_str());
+
 	bool exists = g_pMyFileSystem->FileExists(path.c_str());
 	if (!exists) 
 		{ LUA->PushBool(false); return 1; }
@@ -259,10 +285,11 @@ int MountLegacy(lua_State* L)
 
 GMOD_MODULE_OPEN()
 {
+	printf("[STEAMWORKS] START THE CHAOS!");
 	CSteamWorks::Singleton = new CSteamWorks;
 	g_pMyFileSystem = InterfacePointers::FileSystem();
 	if (!g_pMyFileSystem)
-		LUA->ThrowError("[Steamworks] Filesystem got fucked");
+		LUA->ThrowError("[Steamworks] Filesystem got fucked\n");
 
 	LUA->CreateTable();
 		LUA->PushCFunction(DownloadUGC); LUA->SetField(-2, "DownloadUGC");
@@ -277,10 +304,13 @@ GMOD_MODULE_OPEN()
 		LUA->Call(3, 0);
 	LUA->Pop();
 
+	printf("[STEAMWORKS] I'M INITALIZED\n");
+
 	return 1;
 }
 GMOD_MODULE_CLOSE()
 {
+	printf("[STEAMWORKS] Goodbye gay\n");
 	delete CSteamWorks::Singleton;
 
 	return 0;
