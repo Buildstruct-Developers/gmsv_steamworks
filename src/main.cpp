@@ -285,7 +285,7 @@ int MountLegacy(lua_State* L)
 
 GMOD_MODULE_OPEN()
 {
-	Msg("[STEAMWORKS] START THE CHAOS!");
+	Msg("[STEAMWORKS] START THE CHAOS!\n");
 	CSteamWorks::Singleton = new CSteamWorks;
 	g_pMyFileSystem = InterfacePointers::FileSystem();
 	if (!g_pMyFileSystem)
