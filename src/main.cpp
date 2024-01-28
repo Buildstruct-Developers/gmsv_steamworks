@@ -129,6 +129,8 @@ void CSteamWorks::OnItemDownloaded(DownloadItemResult_t* res)
 
 	std::string path;
 	bool success = res->m_eResult == k_EResultOK;
+	
+	Msg("[Steamworks] OnItemDownloaded->\n");
 		
 	if (success) {
 
@@ -147,6 +149,7 @@ void CSteamWorks::OnItemDownloaded(DownloadItemResult_t* res)
 				while (dir->has_next) {						
 					tinydir_readfile(dir, file);					
 					if (!file->is_dir) {
+						Msg("[Steamworks] UGC Addon -- passing to lua\n");
 						// Addon is not compressed
 						// Where to copy 
 						std::string copyPath = "garrysmod/cache/srcds/" + to_string(sc.id) + ".gma";
@@ -166,7 +169,7 @@ void CSteamWorks::OnItemDownloaded(DownloadItemResult_t* res)
 					}
 					tinydir_next(dir);
 				}
-				tinydir_close(dir);
+				tinydir_close(dir); 
 				delete dir;
 				delete file;
 			} else {
@@ -175,6 +178,7 @@ void CSteamWorks::OnItemDownloaded(DownloadItemResult_t* res)
 				// Addon is compressed
 				path = "garrysmod/cache/srcds/"  + fileName;			
 				std::string relPath = "cache/srcds/"  + fileName;		
+				Msg("[Steamworks] Legacy addon -- passing to decompressor\n");
 				// Let's decompress it on another thread.
 				FileDecompressQueue.push_back({
 					pchFolder,
@@ -183,11 +187,20 @@ void CSteamWorks::OnItemDownloaded(DownloadItemResult_t* res)
 					false,
 					sc.cb,
 				});
-			}			
+			} 			
+		} else {
+			Msg("[Steamworks] Addon was downloaded but not installed!?\n");
+			lua_pushcfunction(L, LuaErrorHandler);
+			lua_rawgeti(L, LUA_REGISTRYINDEX, sc.cb);
+			lua_pushnil(L);
+			if (lua_pcall(L, 1, 0, -3) != 0)
+				lua_pop(L, 1);
+			lua_pop(L, 1);
+			luaL_unref(L, LUA_REGISTRYINDEX, sc.cb);
 		}
 		delete[] pchFolder;
 	} else {
-		
+		Msg("[Steamworks] Unsuccessful addon download.\n");
 		lua_pushcfunction(L, LuaErrorHandler);
 		lua_rawgeti(L, LUA_REGISTRYINDEX, sc.cb);
 		lua_pushnil(L);
@@ -328,22 +341,26 @@ bool breakThread = false;
 static void DoDecompressFiles() {
 	Msg("[Steamworks] Decompression thread started!\n");
 	try {
-	while(!breakThread) {
-		std::this_thread::sleep_for(std::chrono::milliseconds(50));
-		auto it = std::find_if(FileDecompressQueue.begin(), FileDecompressQueue.end(), [&](FileDecompressionRequest& fdr) {
-			return fdr.complete==false;
-		});
-		
-		if (it == FileDecompressQueue.end())
-			continue;
-		
-		FileDecompressionRequest& fdr = *it;
-		cout << "[Steamworks] Decompression file from : " << fdr.source << "\n";
-		DecompressGMAToCache(fdr.source,fdr.dest);
-		fdr.complete = true;
-	};	
+		while(!breakThread) {
+			std::this_thread::sleep_for(std::chrono::milliseconds(50));
+			auto it = std::find_if(FileDecompressQueue.begin(), FileDecompressQueue.end(), [&](FileDecompressionRequest& fdr) {
+				return fdr.complete==false;
+			});
+			
+			if (it == FileDecompressQueue.end())
+				continue;
+			
+			FileDecompressionRequest& fdr = *it;
+			cout << "[Steamworks] Decompression file from : " << fdr.source << "\n";
+			DecompressGMAToCache(fdr.source,fdr.dest);
+			fdr.complete = true;
+		};	
 	} catch(...) {
-			Msg("[Steamworks] Decompression thread crashed!\n");
+		
+			while (!breakThread) {
+				std::this_thread::sleep_for(std::chrono::milliseconds(500));
+				Msg("[Steamworks] Decompression thread crashed!\n");
+			}
 			return;
 	};
 	
@@ -383,11 +400,10 @@ GMOD_MODULE_OPEN()
 	fs::create_directories("garrysmod/cache/srcds");
 	Msg("[Steamworks] Module opened\n");
 	
-
+	breakThread = false;
 	DecompressionWorker = thread(DoDecompressFiles);
-	
 	CSteamWorks::Singleton = new CSteamWorks;
-
+	
 	LUA->CreateTable();
 		LUA->PushCFunction(DownloadUGC); LUA->SetField(-2, "DownloadUGC");
 		LUA->PushCFunction(FileInfo); LUA->SetField(-2, "FileInfo");
