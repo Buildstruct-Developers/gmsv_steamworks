@@ -149,10 +149,10 @@ void CSteamWorks::OnItemDownloaded(DownloadItemResult_t* res)
 					tinydir_readfile(dir, file);					
 					if (!file->is_dir) {
 						// Addon is not compressed
-						fs::copy(file->path,"garrysmod/cache/srcds",fs::copy_options::update_existing);
+						path = "garrysmod/cache/srcds/" + to_string(sc.id) + ".gma";
+						fs::copy_file(file->path,path,fs::copy_options::update_existing);
 						std::string fileName = fs::path(file->path).filename();
-						path = "garrysmod/cache/srcds/"  + fileName;			
-						
+						//path = "garrysmod/cache/srcds/"  + fileName;
 						// The addon is already decompressed, we can callback immediately.
 						lua_pushcfunction(L, LuaErrorHandler);
 						lua_rawgeti(L, LUA_REGISTRYINDEX, sc.cb);
