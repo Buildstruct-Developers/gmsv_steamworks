@@ -73,6 +73,7 @@ private:
 struct FileDecompressionRequest {
 	std::string source;
 	std::string dest;
+	std::string relativePath;
 	bool complete = false;
 	int cb;
 };
@@ -128,9 +129,7 @@ void CSteamWorks::OnItemDownloaded(DownloadItemResult_t* res)
 
 	std::string path;
 	bool success = res->m_eResult == k_EResultOK;
-	
-	Msg("funny UGC downoad...\n");
-	
+		
 	if (success) {
 
 		uint64 punSizeOnDisk;
@@ -149,11 +148,12 @@ void CSteamWorks::OnItemDownloaded(DownloadItemResult_t* res)
 					tinydir_readfile(dir, file);					
 					if (!file->is_dir) {
 						// Addon is not compressed
-						path = "garrysmod/cache/srcds/" + to_string(sc.id) + ".gma";
+						// Where to copy 
+						std::string copyPath = "garrysmod/cache/srcds/" + to_string(sc.id) + ".gma";
+						// Where to tell the user it is 
+						path = "cache/srcds/" + to_string(sc.id) + ".gma";
 						fs::copy_file(file->path,path,fs::copy_options::update_existing);
-						std::string fileName = fs::path(file->path).filename();
-						//path = "garrysmod/cache/srcds/"  + fileName;
-						// The addon is already decompressed, we can callback immediately.
+				
 						lua_pushcfunction(L, LuaErrorHandler);
 						lua_rawgeti(L, LUA_REGISTRYINDEX, sc.cb);
 						success ? lua_pushstring(L, path.c_str()) : lua_pushnil(L);
@@ -173,11 +173,13 @@ void CSteamWorks::OnItemDownloaded(DownloadItemResult_t* res)
 				path = pchFolder;
 				std::string fileName = fs::path(pchFolder).filename();				
 				// Addon is compressed
-				path = "garrysmod/cache/srcds/"  + fileName;						
+				path = "garrysmod/cache/srcds/"  + fileName;			
+				std::string relPath = "cache/srcds/"  + fileName;		
 				// Let's decompress it on another thread.
 				FileDecompressQueue.push_back({
 					pchFolder,
 					path,
+					relPath,
 					false,
 					sc.cb,
 				});
@@ -363,7 +365,7 @@ static void DecompressionCallbacks(lua_State* L) {
 
 		lua_pushcfunction(L, LuaErrorHandler);
 		lua_rawgeti(L, LUA_REGISTRYINDEX, fdr.cb);
-		lua_pushstring(L, fdr.dest.c_str()); 
+		lua_pushstring(L, fdr.relativePath.c_str()); 
 
 		if (lua_pcall(L, 1, 0, -3) != 0)
 			lua_pop(L, 1);
