@@ -1,9 +1,6 @@
 [submodule "third-party/LuaThreading"]
 	path = third-party/LuaThreading
 	url = https://github.com/dankmolot/LuaThreading
-[submodule "third-party/xz"]
-	path = third-party/xz
-	url = https://github.com/tukaani-project/xz.git
 [submodule "third-party/pocketlzma"]
 	path = third-party/pocketlzma
 	url = https://github.com/SSBMTonberry/pocketlzma.git

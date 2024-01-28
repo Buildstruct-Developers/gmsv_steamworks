@@ -1,6 +1,7 @@
 #include <GarrysMod/Lua/Interface.h>
 #include <GarrysMod/InterfacePointers.hpp>
 #include "LuaThreading.hpp"
+#include "pocketlzma.hpp"
 
 #include <steam_api.h>
 #include <string>
@@ -8,9 +9,12 @@
 #include <tinydir.h>
 #include <algorithm>
 #include <inttypes.h>
-#include <filesystem.h>
+#include <filesystem>
+#include <fstream>
+#include <thread>
 
-static IFileSystem* g_pMyFileSystem;
+using namespace std; 
+namespace fs = std::filesystem;
 
 int LuaErrorHandler(lua_State* L)
 {
@@ -21,10 +25,29 @@ int LuaErrorHandler(lua_State* L)
 	return 0;
 }
 
+static bool DecompressGMAToCache(std::string inFile, std::string outFile)
+{
+    std::vector<uint8_t> data;
+    std::vector<uint8_t> decompressedData;
+    plz::FileStatus fileStatus = plz::File::FromFile(inFile, data);
+    if(fileStatus.status() == plz::FileStatus::Code::Ok)
+    {
+        plz::PocketLzma p;
+        plz::StatusCode status = p.decompress(data, decompressedData);
+        if(status == plz::StatusCode::Ok)
+        {
+            plz::FileStatus writeStatus = plz::File::ToFile(outFile, decompressedData);
+            if(writeStatus.status() == plz::FileStatus::Code::Ok)
+                return true;
+        }
+    }
+    return false;
+}
+
 class CSteamWorks {
 public:
 	CSteamWorks() {
-		Msg("[Steamworks] CSTeamworks initialized. I'm initalized some hooks to steam api :)\n");
+		Msg("[Steamworks] Initialized successfully!\n");
 	}
 
 	struct SteamCallback {
@@ -46,13 +69,24 @@ private:
 	CCallResult<CSteamWorks, SteamUGCRequestUGCDetailsResult_t> m_UGCDetailsCallResult;
 };
 
+
+struct FileDecompressionRequest {
+	std::string source;
+	std::string dest;
+	bool complete = false;
+	int cb;
+};
+
+
+
 std::list<CSteamWorks::SteamCallback> CSteamWorks::DownloadUGCQueue;
 std::list<CSteamWorks::SteamCallback> CSteamWorks::FileInfoQueue;
+std::list<FileDecompressionRequest> FileDecompressQueue;
 CSteamWorks* CSteamWorks::Singleton;
+
 
 bool CSteamWorks::RequestUGCDetails(PublishedFileId_t id)
 {
-	Msg("[Steamworks] Requesting UGC Details\n");
 
 	ISteamUGC* ugc = SteamGameServerUGC();
 	if (!ugc)
@@ -66,73 +100,93 @@ bool CSteamWorks::RequestUGCDetails(PublishedFileId_t id)
 	return true;
 }
 
+
 void CSteamWorks::OnItemDownloaded(DownloadItemResult_t* res)
 {
-	Msg("[Steamworks] Hook called: OnItemDownloaded. Checking if hook called for garrysmod. AppID: %" PRIu32 " \n", res->m_unAppID);
 	if (res->m_unAppID != 4000)
 		return;
 
-	Msg("[Steamworks] OnItemDownloaded: Checking if it is our request. ID: %" PRIu64 "\n", res->m_nPublishedFileId);
+	// Find the request with our ID on it. 
 	auto it = std::find_if(DownloadUGCQueue.begin(), DownloadUGCQueue.end(), [&res](SteamCallback& sc) {
 		return res->m_nPublishedFileId == sc.id;
 	});
 
+	// Check of queue is empty?
 	if (it == DownloadUGCQueue.end())
 		return;
 
-	Msg("[Steamworks] OnItemDownloaded: Calling callback...\n");
 	SteamCallback& sc = *it;
 	lua_State* L = sc.state.get();
 
 	std::string path;
 	bool success = res->m_eResult == k_EResultOK;
+	
 	if (success) {
+
 		uint64 punSizeOnDisk;
 		uint32 punTimeStamp;
 		char* pchFolder = new char[256];
 
 		success = SteamGameServerUGC()->GetItemInstallInfo(res->m_nPublishedFileId, &punSizeOnDisk, pchFolder, 256, &punTimeStamp);
+
 		if (success) {
-			if (g_pMyFileSystem->IsDirectory(pchFolder)) {
+			if (std::filesystem::is_directory(pchFolder)) {
 				tinydir_dir* dir = new tinydir_dir;
 				tinydir_file* file = new tinydir_file;
-
 				tinydir_open(dir, pchFolder);
-
-				while (dir->has_next) {
-					tinydir_readfile(dir, file);
-					
+				while (dir->has_next) {						
+					tinydir_readfile(dir, file);					
 					if (!file->is_dir) {
-						//V_FixSlashes(file->path);
-						path = file->path;
+						// Addon is not compressed
+						fs::copy(file->path,"garrysmod/cache/srcds",fs::copy_options::update_existing);
+						std::string fileName = fs::path(file->path).filename();
+						path = "garrysmod/cache/srcds/"  + fileName;			
+						
+						// The addon is already decompressed, we can callback immediately.
+						lua_pushcfunction(L, LuaErrorHandler);
+						lua_rawgeti(L, LUA_REGISTRYINDEX, sc.cb);
+						success ? lua_pushstring(L, path.c_str()) : lua_pushnil(L);
+						if (lua_pcall(L, 1, 0, -3) != 0)
+							lua_pop(L, 1);
+						lua_pop(L, 1);
+						luaL_unref(L, LUA_REGISTRYINDEX, sc.cb);
+						
 						break;
 					}
-
 					tinydir_next(dir);
 				}
-
 				tinydir_close(dir);
-
 				delete dir;
 				delete file;
 			} else {
 				path = pchFolder;
-			}
-			
+				std::string fileName = fs::path(pchFolder).filename();				
+				// Addon is compressed
+				path = "garrysmod/cache/srcds/"  + fileName;		
+				DecompressGMAToCache(pchFolder,path);
+
+				
+				FileDecompressQueue.push_back({
+					pchFolder,
+					path,
+					false,
+					sc.cb,
+				});
+			}			
 		}
-
 		delete[] pchFolder;
-	}
-
-	lua_pushcfunction(L, LuaErrorHandler);
-	lua_rawgeti(L, LUA_REGISTRYINDEX, sc.cb);
-	success ? lua_pushstring(L, path.c_str()) : lua_pushnil(L);
-	if (lua_pcall(L, 1, 0, -3) != 0)
+	} else {
+		
+		lua_pushcfunction(L, LuaErrorHandler);
+		lua_rawgeti(L, LUA_REGISTRYINDEX, sc.cb);
+		lua_pushnil(L);
+		if (lua_pcall(L, 1, 0, -3) != 0)
+			lua_pop(L, 1);
 		lua_pop(L, 1);
-	lua_pop(L, 1);
-
-	Msg("[Steamworks] OnItemDownloaded: Ending everything we need to end\n");
-	luaL_unref(L, LUA_REGISTRYINDEX, sc.cb);
+		luaL_unref(L, LUA_REGISTRYINDEX, sc.cb);						
+	}
+	
+	// get this out of our queue
 	DownloadUGCQueue.erase(it);
 }
 
@@ -146,7 +200,6 @@ void CSteamWorks::OnGetUGCDetails(SteamUGCRequestUGCDetailsResult_t* res, bool b
 	if (it == FileInfoQueue.end())
 		return;
 
-	Msg("[Steamworks] OnGetUGCDetails: Calling callback...\n");
 	SteamCallback& sc = *it;
 	lua_State* L = sc.state.get();
 	bool success = res->m_details.m_eResult == k_EResultOK;
@@ -180,9 +233,8 @@ void CSteamWorks::OnGetUGCDetails(SteamUGCRequestUGCDetailsResult_t* res, bool b
 	if (lua_pcall(L, 1, 0, -3) != 0)
 		lua_pop(L, 1);
 	lua_pop(L, success ? 2 : 1);
-
-	Msg("[Steamworks] OnGetUGCDetails: Cleanup our shit\n");
 	luaL_unref(L, LUA_REGISTRYINDEX, sc.cb);
+	
 	FileInfoQueue.erase(it);
 }
 
@@ -191,15 +243,12 @@ int DownloadUGC(lua_State* L)
 	GarrysMod::Lua::ILuaBase* LUA = L->luabase;
 	LUA->SetState(L);
 
-	Msg("[Steamworks] DownloadUGC function just got called!\n");
-
 	PublishedFileId_t id = std::strtoull(LUA->CheckString(1), NULL, 0);
 	LUA->CheckType(2, GarrysMod::Lua::Type::Function);
 
-	Msg("[Steamworks] %" PRIu64 " is id \n", id);
-
 	bool success = id != 0ULL;
 	if (success) {
+		
 		ISteamUGC* ugc = SteamGameServerUGC();
 		if (ugc)
 			success = ugc->DownloadItem(id, false);
@@ -208,7 +257,6 @@ int DownloadUGC(lua_State* L)
 			lua_pushvalue(L, 2);
 			int ref = luaL_ref(L, LUA_REGISTRYINDEX);
 
-			Msg("[Steamworks] DownloadUGC pushing request to queue\n");
 			CSteamWorks::DownloadUGCQueue.push_back({
 				Retro::LuaThreading::CreateState(L),
 				id,
@@ -232,12 +280,8 @@ int FileInfo(lua_State* L)
 	GarrysMod::Lua::ILuaBase* LUA = L->luabase;
 	LUA->SetState(L);
 
-	Msg("[Steamworks] FileInfo function just got called!\n");
-
 	PublishedFileId_t id = std::strtoull(LUA->CheckString(1), NULL, 0);
 	LUA->CheckType(2, GarrysMod::Lua::Type::Function);
-
-	Msg("[Steamworks] %" PRIu64 " is id \n", id);
 
 	bool success = id != 0ULL;
 	if (success) {
@@ -247,7 +291,6 @@ int FileInfo(lua_State* L)
 			lua_pushvalue(L, 2);
 			int ref = luaL_ref(L, LUA_REGISTRYINDEX);
 
-			Msg("[Steamworks] FileInfo pushing request to queue\n");
 			CSteamWorks::FileInfoQueue.push_back({
 				Retro::LuaThreading::CreateState(L),
 				id,
@@ -266,30 +309,72 @@ int FileInfo(lua_State* L)
 	return 1;
 }
 
-int MountLegacy(lua_State* L)
-{
-	GarrysMod::Lua::ILuaBase* LUA = L->luabase;
-	LUA->SetState(L);
 
-	std::string path = LUA->CheckString(1);
+std::thread DecompressionWorker; 
+bool breakThread = false; 
 
-	Msg("[Steamworks] MountLegacy called. File: %s\n", path.c_str());
-
-	bool exists = g_pMyFileSystem->FileExists(path.c_str());
-	if (!exists) 
-		{ LUA->PushBool(false); return 1; }
-
-
-	return 0;
+static void DoDecompressFiles() {
+	Msg("[Steamworks] Decompression thread started!\n");
+	try {
+	while(!breakThread) {
+		std::this_thread::sleep_for(std::chrono::milliseconds(50));
+		auto it = std::find_if(FileDecompressQueue.begin(), FileDecompressQueue.end(), [&](FileDecompressionRequest& fdr) {
+			return fdr.complete==false;
+		});
+		
+		if (it == FileDecompressQueue.end())
+			continue;
+		
+		FileDecompressionRequest& fdr = *it;
+		cout << "[Steamworks] Decompression file from : " << fdr.source << "\n";
+		DecompressGMAToCache(fdr.source,fdr.dest);
+		fdr.complete = true;
+	};	
+	} catch(...) {
+			Msg("[Steamworks] Decompression thread crashed!\n");
+			return;
+	};
+	
+	Msg("[Steamworks] Decompression thread stopped!\n");
 }
+
+
+
+static void DecompressionCallbacks(lua_State* L) {
+		
+		auto it = std::find_if(FileDecompressQueue.begin(), FileDecompressQueue.end(), [&](FileDecompressionRequest& fdr) {
+			return fdr.complete==true;
+		});		
+	
+		if (it ==  FileDecompressQueue.end())
+			return;	
+
+		FileDecompressionRequest& fdr = *it;
+
+		lua_pushcfunction(L, LuaErrorHandler);
+		lua_rawgeti(L, LUA_REGISTRYINDEX, fdr.cb);
+		lua_pushstring(L, fdr.dest.c_str()); 
+
+		if (lua_pcall(L, 1, 0, -3) != 0)
+			lua_pop(L, 1);
+		lua_pop(L, 1);
+		luaL_unref(L, LUA_REGISTRYINDEX, fdr.cb);
+		
+		cout << "[Steamworks] Decompression file done! : " << fdr.dest << "\n";
+		
+		FileDecompressQueue.erase(it);
+};
+
 
 GMOD_MODULE_OPEN()
 {
-	Msg("[STEAMWORKS] START THE CHAOS!\n");
+	fs::create_directories("garrysmod/cache/srcds");
+	Msg("[Steamworks] Module opened\n");
+	
+
+	DecompressionWorker = thread(DoDecompressFiles);
+	
 	CSteamWorks::Singleton = new CSteamWorks;
-	g_pMyFileSystem = InterfacePointers::FileSystem();
-	if (!g_pMyFileSystem)
-		LUA->ThrowError("[Steamworks] Filesystem got fucked\n");
 
 	LUA->CreateTable();
 		LUA->PushCFunction(DownloadUGC); LUA->SetField(-2, "DownloadUGC");
@@ -299,19 +384,19 @@ GMOD_MODULE_OPEN()
 	LUA->GetField(GarrysMod::Lua::INDEX_GLOBAL, "hook");
 		LUA->GetField(-1, "Add");
 		LUA->PushString("Think");
-		LUA->PushString("_STEAMWORKS_THINK");
-		LUA->PushCFunction([](lua_State* L) { Retro::LuaThreading::Think(); return 0; });
+		LUA->PushString("_steamworks");
+		LUA->PushCFunction([](lua_State* L) { Retro::LuaThreading::Think(); DecompressionCallbacks(L); return 0; });
 		LUA->Call(3, 0);
 	LUA->Pop();
-
-	Msg("[STEAMWORKS] I'M INITALIZED\n");
-
+	
+	Msg("[Steamworks] Initialization successful!\n");
 	return 1;
 }
+
 GMOD_MODULE_CLOSE()
 {
-	Msg("[STEAMWORKS] Goodbye gay\n");
+	breakThread = true;
+	DecompressionWorker.join();
 	delete CSteamWorks::Singleton;
-
 	return 0;
 }

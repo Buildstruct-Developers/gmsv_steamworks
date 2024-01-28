@@ -16,6 +16,6 @@ function IncludeSteamAPI()
     
     filter {}
 
-    sysincludedirs{current_dir .. '/include'}
+    externalincludedirs{current_dir .. '/include'}
     links 'steam_api'
 end

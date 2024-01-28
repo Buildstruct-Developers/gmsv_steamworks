@@ -13,6 +13,7 @@ include "third-party/steam_api" -- Replaces IncludeSteamAPI
 include "third-party/tinydir"
 include "third-party/LuaThreading"
 
+
 CreateWorkspace({ name = "steamworks", abi_compatible = false })
     CreateProject({ serverside = true, manual_files = true })
         IncludeHelpersExtended()
@@ -26,5 +27,7 @@ CreateWorkspace({ name = "steamworks", abi_compatible = false })
         IncludeTinydir()
         IncludeLuaThreading()
 
+
         files {"src/*.cpp", "src/*.hpp"}
-        sysincludedirs { "third-party/tinydir" }
+        externalincludedirs { "third-party/tinydir" }
+        externalincludedirs { "third-party/pocketlzma" }
