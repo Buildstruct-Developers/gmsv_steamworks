@@ -152,7 +152,7 @@ void CSteamWorks::OnItemDownloaded(DownloadItemResult_t* res)
 						std::string copyPath = "garrysmod/cache/srcds/" + to_string(sc.id) + ".gma";
 						// Where to tell the user it is 
 						path = "cache/srcds/" + to_string(sc.id) + ".gma";
-						fs::copy_file(file->path,path,fs::copy_options::update_existing);
+						fs::copy_file(file->path,copyPath,fs::copy_options::update_existing);
 				
 						lua_pushcfunction(L, LuaErrorHandler);
 						lua_rawgeti(L, LUA_REGISTRYINDEX, sc.cb);
