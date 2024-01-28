@@ -77,12 +77,20 @@ struct FileDecompressionRequest {
 	int cb;
 };
 
+struct UGCDownloadRequest {
+	bool complete = false; 
+	int cb;
+	int workshopID;
+};
 
 
 std::list<CSteamWorks::SteamCallback> CSteamWorks::DownloadUGCQueue;
 std::list<CSteamWorks::SteamCallback> CSteamWorks::FileInfoQueue;
 std::list<FileDecompressionRequest> FileDecompressQueue;
+std::list<UGCDownloadRequest> DownloadPreQueue;
+
 CSteamWorks* CSteamWorks::Singleton;
+
 
 
 bool CSteamWorks::RequestUGCDetails(PublishedFileId_t id)
@@ -121,6 +129,8 @@ void CSteamWorks::OnItemDownloaded(DownloadItemResult_t* res)
 	std::string path;
 	bool success = res->m_eResult == k_EResultOK;
 	
+	Msg("funny UGC downoad...\n");
+	
 	if (success) {
 
 		uint64 punSizeOnDisk;
@@ -128,6 +138,7 @@ void CSteamWorks::OnItemDownloaded(DownloadItemResult_t* res)
 		char* pchFolder = new char[256];
 
 		success = SteamGameServerUGC()->GetItemInstallInfo(res->m_nPublishedFileId, &punSizeOnDisk, pchFolder, 256, &punTimeStamp);
+
 
 		if (success) {
 			if (std::filesystem::is_directory(pchFolder)) {
@@ -162,10 +173,8 @@ void CSteamWorks::OnItemDownloaded(DownloadItemResult_t* res)
 				path = pchFolder;
 				std::string fileName = fs::path(pchFolder).filename();				
 				// Addon is compressed
-				path = "garrysmod/cache/srcds/"  + fileName;		
-				DecompressGMAToCache(pchFolder,path);
-
-				
+				path = "garrysmod/cache/srcds/"  + fileName;						
+				// Let's decompress it on another thread.
 				FileDecompressQueue.push_back({
 					pchFolder,
 					path,
@@ -250,9 +259,10 @@ int DownloadUGC(lua_State* L)
 	if (success) {
 		
 		ISteamUGC* ugc = SteamGameServerUGC();
+	
 		if (ugc)
 			success = ugc->DownloadItem(id, false);
-
+		
 		if (success) {
 			lua_pushvalue(L, 2);
 			int ref = luaL_ref(L, LUA_REGISTRYINDEX);
